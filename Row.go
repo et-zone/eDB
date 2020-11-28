@@ -1,4 +1,4 @@
-package github.com/et-zone/eDB
+package eDB
 
 import (
 	"encoding/json"
