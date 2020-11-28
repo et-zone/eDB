@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"reflect"
 	"strings"
 
@@ -19,9 +20,9 @@ const (
 )
 
 type Client struct {
-	tableRows   map[string]string //tableName rowSql
+	tableRows   map[string]string //key=tableName ,val=rowSql
 	db          *gorm.DB
-	tableFields map[string]string //tableName fields
+	tableFields map[string]string //key=tableName, val=fields
 }
 
 type EConfig struct {
@@ -30,7 +31,7 @@ type EConfig struct {
 	Addr      string `json:"addr"`
 	Port      int    `json:"port"`
 	DB        string `json:"db"`
-	TableFile string `json:"tablefile"`
+	TableFile string `json:"tablefile"` // 表的配置文件
 }
 
 //初始化gorm
@@ -51,7 +52,8 @@ func initOrm(cfg *EConfig) *gorm.DB {
 	return db
 
 }
-func InitClient(config *EConfig) {
+
+func InitClient(config *EConfig) *Client {
 	eClient = &Client{
 		tableRows:   map[string]string{}, //values
 		db:          initOrm(config),
@@ -64,25 +66,34 @@ func InitClient(config *EConfig) {
 			panic(err.Error())
 		}
 		for key, _ := range tblist {
-			EClient.InitTableField(key, tblist[key]...)
+			eClient.initTableField(key, tblist[key]...)
 		}
 
 	}
+	return eClient
 
 }
 
-func (cli *Client) Clear(tableName string) {
-	cli.tableRows[tableName] = ""
+func (cli *Client) Clear(tableName ...string) {
+	if len(tableName) == 0 {
+		for key, _ := range cli.tableRows {
+			cli.tableRows[key] = ""
+		}
+	} else {
+		for _, key := range tableName {
+			cli.tableRows[key] = ""
+		}
+	}
 
 }
 
 func (cli *Client) AddRow(tableName string, row *Row) {
 	tmpStr := "("
-	for i := 0; i < row.getSize(); i++ {
+	for i := 0; i < row.GetSize(); i++ {
 
-		switch reflect.TypeOf(row.getColumnValues(i)).String() {
+		switch reflect.TypeOf(row.GetColumnValues(i)).String() {
 		case "string":
-			val := fmt.Sprintf("%v", row.getColumnValues(i))
+			val := fmt.Sprintf("%v", row.GetColumnValues(i))
 			if val == "NULL" {
 				tmpStr = tmpStr + val
 			} else {
@@ -91,11 +102,11 @@ func (cli *Client) AddRow(tableName string, row *Row) {
 				tmpStr = tmpStr + "'" + val + "'"
 			}
 		default:
-			tmpStr = tmpStr + fmt.Sprintf("%v", row.getColumnValues(i))
+			tmpStr = tmpStr + fmt.Sprintf("%v", row.GetColumnValues(i))
 
 		}
 		// fmt.Println(reflect.TypeOf(row.getColumnValues(i)).String())
-		if i != row.getSize()-1 {
+		if i != row.GetSize()-1 {
 			tmpStr += ", "
 		}
 	}
@@ -106,11 +117,6 @@ func (cli *Client) AddRow(tableName string, row *Row) {
 	cli.tableRows[tableName] = cli.tableRows[tableName] + tmpStr
 
 }
-func (cli *Client) GettableNanme(tableName string) string {
-
-	return cli.tableRows[tableName]
-
-}
 
 func (cli *Client) isTableIn(tableName string) bool {
 	_, isin := cli.tableFields[tableName]
@@ -118,28 +124,85 @@ func (cli *Client) isTableIn(tableName string) bool {
 
 }
 
-func (cli *Client) Commit() {
+func (cli *Client) GetTableNames() []string {
+	tbnames := []string{}
+	for tbname, _ := range cli.tableFields {
+		tbnames = append(tbnames, tbname)
+	}
+	return tbnames
 
-	for key, _ := range cli.tableRows {
-		// cli.db.Exec(cli.GettableNanme(key)[:len(cli.GettableNanme(key)-1)])
-		// fmt.Println(cli.tableRows[key])
+}
 
-		sql := "INSERT INTO " + key + cli.tableFields[key] + " VALUES " + cli.tableRows[key]
-		fmt.Println(sql)
-
-		_, err := cli.db.DB().Exec(sql)
-
-		// d, _ := cout.RowsAffected()
+//flush DB All table
+func (cli *Client) FlushAll() (err error) {
+	sql := ""
+	defer func() {
+		err := recover()
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Println("errSql ====> ", sql)
+
 		}
+	}()
+	for key, _ := range cli.tableRows {
+
+		sql = "INSERT INTO " + key + cli.tableFields[key] + " VALUES " + cli.tableRows[key]
+		_, err = cli.db.DB().Exec(sql)
+
+		if err != nil {
+			log.Println("FlushAll err  tableName="+key+" sql= ", sql, " err= ", err.Error())
+		}
+		// d, _ := ret.RowsAffected()
+		cli.Clear(key)
 
 	}
+	return
+
+}
+
+//事务插入，必须制定哪些数据表,默认不执行插入
+func (cli *Client) FlushTx(tableName ...string) (err error) {
+	if len(tableName) == 0 {
+		return nil
+	}
+
+	sql := ""
+	defer func() {
+		err := recover()
+		if err != nil {
+			log.Println("errSql ====> ", sql)
+
+		}
+	}()
+
+	tx, err := cli.db.DB().Begin()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	for _, key := range tableName {
+
+		sql = "INSERT INTO " + key + cli.tableFields[key] + " VALUES " + cli.tableRows[key]
+
+		_, err = tx.Exec(sql)
+
+		if err != nil {
+			log.Println("tableName="+key+" err= ", err.Error())
+			tx.Rollback()
+			return
+		}
+		// d, _ := ret.RowsAffected()
+	}
+	for _, key := range tableName {
+		cli.Clear(key)
+	}
+
+	err = tx.Commit()
+	return
 
 }
 
 //设置字段名称
-func (cli *Client) InitTableField(tableName string, fields ...string) {
+func (cli *Client) initTableField(tableName string, fields ...string) {
 	_, isok := cli.tableFields[tableName]
 	if isok {
 		return
