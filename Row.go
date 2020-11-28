@@ -13,7 +13,7 @@ func NewRow() *Row {
 	return &Row{[]interface{}{}}
 }
 
-func (this *Row) setColumn(index int, value interface{}) bool {
+func (this *Row) SetColumn(index int, value interface{}) bool {
 	if value == nil {
 		this.columnValues[index] = "NULL"
 		return true
@@ -28,7 +28,7 @@ func (this *Row) setColumn(index int, value interface{}) bool {
 	panic("out of range by Row ")
 }
 
-func (this *Row) updateColumn(index int, value interface{}) bool {
+func (this *Row) UpdateColumn(index int, value interface{}) bool {
 	if index >= 0 && index < this.getSize() {
 		this.columnValues[index] = value
 		return true
@@ -38,11 +38,11 @@ func (this *Row) updateColumn(index int, value interface{}) bool {
 
 }
 
-func (this *Row) getColumnValues(index int) interface{} {
+func (this *Row) GetColumnValues(index int) interface{} {
 	return this.columnValues[index]
 }
 
-func (this *Row) getSize() int {
+func (this *Row) GetSize() int {
 	return len(this.columnValues)
 }
 

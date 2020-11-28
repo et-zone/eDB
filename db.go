@@ -11,7 +11,7 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-var EClient *Client
+var eClient *Client
 var table_config string = ""
 
 const (
@@ -52,7 +52,7 @@ func initOrm(cfg *EConfig) *gorm.DB {
 
 }
 func InitClient(config *EConfig) {
-	EClient = &Client{
+	eClient = &Client{
 		tableRows:   map[string]string{}, //values
 		db:          initOrm(config),
 		tableFields: map[string]string{}, //字段名称
@@ -76,7 +76,7 @@ func (cli *Client) Clear(tableName string) {
 
 }
 
-func (cli *Client) addRow(tableName string, row *Row) {
+func (cli *Client) AddRow(tableName string, row *Row) {
 	tmpStr := "("
 	for i := 0; i < row.getSize(); i++ {
 
