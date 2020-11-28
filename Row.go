@@ -2,6 +2,8 @@ package eDB
 
 import (
 	"encoding/json"
+	"reflect"
+	"strings"
 )
 
 type Row struct {
@@ -14,7 +16,9 @@ func NewRow() *Row {
 }
 
 func (this *Row) SetColumn(index int, value interface{}) bool {
-
+	if strings.Contains(reflect.TypeOf(value).String(), "*") {
+		panic("set value err, Value cannot be a ptr ")
+	}
 	if this.GetSize() > index && index >= 0 {
 		this.columnValues[index] = value
 		return true
@@ -30,9 +34,17 @@ func (this *Row) SetColumn(index int, value interface{}) bool {
 }
 
 func (this *Row) UpdateColumn(index int, value interface{}) bool {
+	if strings.Contains(reflect.TypeOf(value).String(), "*") {
+		panic("set value err, Value cannot be a ptr ")
+	}
 	if index >= 0 && index < this.GetSize() {
-		this.columnValues[index] = value
-		return true
+		if value == nil {
+			this.columnValues[index] = "NULL"
+			return true
+		} else {
+			this.columnValues[index] = value
+			return true
+		}
 	}
 
 	panic("out of range by Row ")
