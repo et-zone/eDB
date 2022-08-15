@@ -2,6 +2,7 @@ package eDB
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -87,6 +88,14 @@ func (cli *Client) Clear(tableName ...string) {
 
 }
 
+func (cli *Client) SetTable(tableName string, fields []string) error {
+	if tableName == "" || len(fields) == 0 {
+		return errors.New("args err")
+	}
+	eClient.initTableField(tableName, fields...)
+	return nil
+}
+
 func (cli *Client) AddRow(tableName string, row *Row) {
 	tmpStr := "("
 	for i := 0; i < row.GetSize(); i++ {
@@ -111,11 +120,10 @@ func (cli *Client) AddRow(tableName string, row *Row) {
 		}
 	}
 	tmpStr = tmpStr[:len(tmpStr)] + ")"
-	if len(cli.tableRows[tableName]) != 0 {
+	if cli.tableRows != nil && len(cli.tableRows[tableName]) != 0 {
 		tmpStr = "," + tmpStr
 	}
 	cli.tableRows[tableName] = cli.tableRows[tableName] + tmpStr
-
 }
 
 func (cli *Client) isTableIn(tableName string) bool {
@@ -144,7 +152,6 @@ func (cli *Client) FlushAll() (err error) {
 		}
 	}()
 	for key, _ := range cli.tableRows {
-
 		sql = "INSERT INTO " + key + cli.tableFields[key] + " VALUES " + cli.tableRows[key]
 		_, err = cli.db.DB().Exec(sql)
 
