@@ -18,6 +18,16 @@ var table_config string = ""
 
 const (
 	TABLE_FIELDS = "TABLEFIELDS"
+	null ="NULL"
+	apst ="'"
+	apstr ="\\'"
+	dbquot="\""
+	dbquotr="\\\""
+	ptsl=" ("
+	ptsr=") "
+	coma=", "
+	insertInto ="INSERT INTO "
+	values=" VALUES "
 )
 
 type Client struct {
@@ -75,7 +85,7 @@ func InitClient(config *EConfig) *Client {
 
 }
 
-func (cli *Client) Clear(tableName ...string) {
+func (cli *Client) clear(tableName ...string) {
 	if len(tableName) == 0 {
 		for key, _ := range cli.tableRows {
 			cli.tableRows[key] = ""
@@ -97,18 +107,18 @@ func (cli *Client) SetTable(tableName string, fields []string) error {
 }
 
 func (cli *Client) AddRow(tableName string, row *Row) {
-	tmpStr := "("
+	tmpStr := ptsl
 	for i := 0; i < row.GetSize(); i++ {
 
 		switch reflect.TypeOf(row.GetColumnValues(i)).String() {
 		case "string":
 			val := fmt.Sprintf("%v", row.GetColumnValues(i))
-			if val == "NULL" {
+			if val == null {
 				tmpStr = tmpStr + val
 			} else {
-				val = strings.ReplaceAll(val, "'", "\\'")
-				val = strings.ReplaceAll(val, "\"", "\\\"")
-				tmpStr = tmpStr + "'" + val + "'"
+				val = strings.ReplaceAll(val, apst, apstr)
+				val = strings.ReplaceAll(val, dbquot, dbquotr)
+				tmpStr = tmpStr + apst + val + apst
 			}
 		default:
 			tmpStr = tmpStr + fmt.Sprintf("%v", row.GetColumnValues(i))
@@ -116,12 +126,12 @@ func (cli *Client) AddRow(tableName string, row *Row) {
 		}
 		// fmt.Println(reflect.TypeOf(row.getColumnValues(i)).String())
 		if i != row.GetSize()-1 {
-			tmpStr += ", "
+			tmpStr += coma
 		}
 	}
-	tmpStr = tmpStr[:len(tmpStr)] + ")"
+	tmpStr = tmpStr[:len(tmpStr)] + ptsr
 	if cli.tableRows != nil && len(cli.tableRows[tableName]) != 0 {
-		tmpStr = "," + tmpStr
+		tmpStr = coma + tmpStr
 	}
 	cli.tableRows[tableName] = cli.tableRows[tableName] + tmpStr
 }
@@ -152,14 +162,17 @@ func (cli *Client) FlushAll() (err error) {
 		}
 	}()
 	for key, _ := range cli.tableRows {
-		sql = "INSERT INTO " + key + cli.tableFields[key] + " VALUES " + cli.tableRows[key]
+		if cli.tableRows[key]==""||key==""{
+			continue
+		}
+		sql = insertInto + key + cli.tableFields[key] + values + cli.tableRows[key]
 		_, err = cli.db.DB().Exec(sql)
 
 		if err != nil {
 			log.Println("FlushAll err  tableName="+key+" sql= ", sql, " err= ", err.Error())
 		}
 		// d, _ := ret.RowsAffected()
-		cli.Clear(key)
+		cli.clear(key)
 
 	}
 	return
@@ -188,19 +201,19 @@ func (cli *Client) FlushTx(tableName ...string) (err error) {
 
 	for _, key := range tableName {
 
-		sql = "INSERT INTO " + key + cli.tableFields[key] + " VALUES " + cli.tableRows[key]
+		sql = insertInto + key + cli.tableFields[key] + values + cli.tableRows[key]
 
 		_, err = tx.Exec(sql)
 
 		if err != nil {
-			log.Println("tableName="+key+" err= ", err.Error())
+			log.Println("FlushTx err tableName="+key+" err= ", err.Error())
 			tx.Rollback()
 			return
 		}
 		// d, _ := ret.RowsAffected()
 	}
 	for _, key := range tableName {
-		cli.Clear(key)
+		cli.clear(key)
 	}
 
 	err = tx.Commit()
@@ -217,14 +230,14 @@ func (cli *Client) initTableField(tableName string, fields ...string) {
 	if len(fields) == 0 {
 		return
 	}
-	tmpFields := " ("
+	tmpFields := ptsl
 	for i, field := range fields {
 		tmpFields += field
 		if i != len(fields)-1 {
-			tmpFields += ", "
+			tmpFields += coma
 		}
 	}
-	tmpFields += ") "
+	tmpFields += ptsr
 	cli.tableFields[tableName] = tmpFields
 
 }

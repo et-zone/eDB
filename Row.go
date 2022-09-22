@@ -24,7 +24,7 @@ func (this *Row) SetColumn(index int, value interface{}) bool {
 		return true
 	} else if index == this.GetSize() {
 		if value == nil {
-			this.columnValues = append(this.columnValues, "NULL")
+			this.columnValues = append(this.columnValues, null)
 			return true
 		}
 		this.columnValues = append(this.columnValues, value)
@@ -39,7 +39,7 @@ func (this *Row) UpdateColumn(index int, value interface{}) bool {
 	}
 	if index >= 0 && index < this.GetSize() {
 		if value == nil {
-			this.columnValues[index] = "NULL"
+			this.columnValues[index] = null
 			return true
 		} else {
 			this.columnValues[index] = value
