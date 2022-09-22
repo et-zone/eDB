@@ -105,7 +105,7 @@ func (cli *Client) SetTable(tableName string, fields []string) error {
 	return nil
 }
 
-func (cli *Client) AddRow(tableName string, row *Row) {
+func (cli *Client) AddRow(tableName string, row *row) {
 	tmpStr := ptsl
 	for i := 0; i < row.GetSize(); i++ {
 
