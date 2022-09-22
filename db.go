@@ -199,9 +199,10 @@ func (cli *Client) FlushTx(tableName ...string) (err error) {
 	}
 
 	for _, key := range tableName {
-
+		if cli.tableRows[key] == "" || key == "" {
+			continue
+		}
 		sql = insertInto + key + cli.tableFields[key] + values + cli.tableRows[key]
-
 		_, err = tx.Exec(sql)
 
 		if err != nil {
