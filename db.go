@@ -1,16 +1,15 @@
 package eDB
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"io/ioutil"
 	"log"
 	"reflect"
 	"strings"
-
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/jinzhu/gorm"
 )
 
 var eClient *Client
@@ -18,21 +17,21 @@ var table_config string = ""
 
 const (
 	TABLE_FIELDS = "TABLEFIELDS"
-	null ="NULL"
-	apst ="'"
-	apstr ="\\'"
-	dbquot="\""
-	dbquotr="\\\""
-	ptsl=" ("
-	ptsr=") "
-	coma=", "
-	insertInto ="INSERT INTO "
-	values=" VALUES "
+	null         = "NULL"
+	apst         = "'"
+	apstr        = "\\'"
+	dbquot       = "\""
+	dbquotr      = "\\\""
+	ptsl         = " ("
+	ptsr         = ") "
+	coma         = ", "
+	insertInto   = "INSERT INTO "
+	values       = " VALUES "
 )
 
 type Client struct {
 	tableRows   map[string]string //key=tableName ,val=rowSql
-	db          *gorm.DB
+	db          *sql.DB
 	tableFields map[string]string //key=tableName, val=fields
 }
 
@@ -46,9 +45,9 @@ type EConfig struct {
 }
 
 //初始化gorm
-func initOrm(cfg *EConfig) *gorm.DB {
+func initOrm(cfg *EConfig) *sql.DB {
 
-	db, err := gorm.Open("mysql", fmt.Sprintf(
+	db, err := sql.Open("mysql", fmt.Sprintf(
 		"%s:%s@tcp(%s:%d)/%s",
 		cfg.UserName,
 		cfg.PassWord,
@@ -56,12 +55,12 @@ func initOrm(cfg *EConfig) *gorm.DB {
 		cfg.Port,
 		cfg.DB,
 	))
-	db.SingularTable(true)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxIdleTime(10)
 	if err != nil {
 		panic("orm init error")
 	}
 	return db
-
 }
 
 func InitClient(config *EConfig) *Client {
@@ -162,11 +161,11 @@ func (cli *Client) FlushAll() (err error) {
 		}
 	}()
 	for key, _ := range cli.tableRows {
-		if cli.tableRows[key]==""||key==""{
+		if cli.tableRows[key] == "" || key == "" {
 			continue
 		}
 		sql = insertInto + key + cli.tableFields[key] + values + cli.tableRows[key]
-		_, err = cli.db.DB().Exec(sql)
+		_, err = cli.db.Exec(sql)
 
 		if err != nil {
 			log.Println("FlushAll err  tableName="+key+" sql= ", sql, " err= ", err.Error())
@@ -194,7 +193,7 @@ func (cli *Client) FlushTx(tableName ...string) (err error) {
 		}
 	}()
 
-	tx, err := cli.db.DB().Begin()
+	tx, err := cli.db.Begin()
 	if err != nil {
 		panic(err.Error())
 	}

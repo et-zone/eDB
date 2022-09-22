@@ -6,16 +6,15 @@ import (
 	"strings"
 )
 
-type Row struct {
+type row struct {
 	columnValues []interface{}
 }
 
-func NewRow() *Row {
-
-	return &Row{[]interface{}{}}
+func NewRow() *row {
+	return &row{[]interface{}{}}
 }
 
-func (this *Row) SetColumn(index int, value interface{}) bool {
+func (this *row) SetColumn(index int, value interface{}) bool {
 	if strings.Contains(reflect.TypeOf(value).String(), "*") {
 		panic("set value err, Value cannot be a ptr ")
 	}
@@ -33,7 +32,7 @@ func (this *Row) SetColumn(index int, value interface{}) bool {
 	panic("out of range by Row ")
 }
 
-func (this *Row) UpdateColumn(index int, value interface{}) bool {
+func (this *row) UpdateColumn(index int, value interface{}) bool {
 	if strings.Contains(reflect.TypeOf(value).String(), "*") {
 		panic("set value err, Value cannot be a ptr ")
 	}
@@ -51,15 +50,15 @@ func (this *Row) UpdateColumn(index int, value interface{}) bool {
 
 }
 
-func (this *Row) GetColumnValues(index int) interface{} {
+func (this *row) GetColumnValues(index int) interface{} {
 	return this.columnValues[index]
 }
 
-func (this *Row) GetSize() int {
+func (this *row) GetSize() int {
 	return len(this.columnValues)
 }
 
-func (this *Row) String() string {
+func (this *row) String() string {
 	b, _ := json.Marshal(this.columnValues)
 	return string(b)
 }
